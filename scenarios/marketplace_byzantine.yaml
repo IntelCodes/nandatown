@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+# Marketplace, identical to scenarios/marketplace.yaml except for ONE setting:
+#   failures.byzantine_agents: 0.0 -> 0.02
+#
+# At 0.02, two of the hundred agents garble every message they send. The point
+# of this scenario is not that two faulty agents hurt the market. It is that
+# they hurt it a great deal while the health signals do not report it. On this
+# seed, 20 of 50 buyers stall permanently and never trade again, yet
+# delivery_rate stays 1.000, deal_rate RISES from 0.532 to 0.587, and all three
+# shipped marketplace validators pass.
+#
+# Checked on seeds 42, 7, 1337, 2026 and 99. delivery_rate is 1.000 in every
+# run and deal_rate never falls in any of them; the number of buyers lost at
+# this fraction varies with which two agents are hit. See the writeup.
+#
+# Writeup and evidence:
+#   docs/experiments/marketplace-byzantine-blind-spot/README.md
+name: marketplace_byzantine
+description: "Marketplace with 2% Byzantine agents: silent participant collapse that the metrics and validators do not report."
+
+tier: 1
+seed: 42
+
+agents:
+  count: 100
+  brain: state-machine
+  roles:
+    - name: buyer
+      count: 50
+    - name: seller
+      count: 50
+
+layers:
+  transport: in_memory
+  comms: nest_native
+  identity: did_key
+  registry: in_memory
+  auth: jwt
+  trust: score_average
+  payments: prepaid_credits
+  coordination: contract_net
+  negotiation: alternating_offers
+  memory: blackboard
+  privacy: noop
+  datafacts: datafacts_v1
+
+task:
+  type: marketplace
+  config:
+    catalog_size: 200
+    rounds: 10
+
+failures:
+  message_drop: 0.0
+  byzantine_agents: 0.02
+
+duration: "ticks: 10000"
+
+metrics:
+  - success_rate
+  - mean_latency
+  - message_count
+
+output:
+  trace: ./traces/marketplace_byzantine.jsonl
